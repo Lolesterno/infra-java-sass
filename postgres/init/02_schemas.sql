@@ -1,0 +1,13 @@
+CREATE SCHEMA IF NOT EXIST platform;
+
+DO $$
+BEGIN
+    IF NOT EXIST (SELECT FROM pg_roles WHERE rolname = 'app_user') THEN
+        CREATE ROLE app_user LOGIN PASSWORD 'app_dev_pass';
+    END IF;
+END $$;
+
+GRANT USAGE ON SCHEMA platform TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA platform TO app_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA platform
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_user;

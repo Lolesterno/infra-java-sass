@@ -1,0 +1,227 @@
+networks:
+  platform:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+
+services:
+
+  postgres:
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile
+    image: platform_postgres:local
+    container_name: platform_postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=platform
+      - POSTGRES_PASSWORD=platform_dev
+      - POSTGRES_DB=platform
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/home/postgres/pgdata/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
+    networks:
+      - platform
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U platform -d platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    
+  pgbouncer:
+    image: docker.io/bitnamilegacy/pgbouncer:latest
+    container_name: platform_pgbouncer
+    restart: unless-stopped
+    environment:
+      - POSTGRESQL_HOST=postgres
+      - POSTGRESQL_PORT=5432
+      - POSTGRESQL_USERNAME=platform
+      - POSTGRESQL_PASSWORD=platform_dev
+      - POSTGRESQL_DATABASE=platform
+      - PGBOUNCER_PORT=6432
+      - PGBOUNCER_POOL_MODE=transaction
+      - PGBOUNCER_MAX_CLIENT_CONN=1000
+      - PGBOUNCER_DEFAULT_POOL_SIZE= 25
+    ports:
+      - "6432:6432"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - platform
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: platform_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - platform
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build:
+      context: ../minikosbreb/auth-service
+      dockerfile: Dockerfile
+    image: platform_auth:local
+    container_name: platform_auth
+    restart: unless-stopped
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/platform
+      - SPRING_DATASOURCE_USERNAME=platform
+      - SPRING_DATASOURCE_PASSWORD=platform_dev
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - JWT_SECRET=dev_secret_key_must_be_at_least_256_bits_long_for_hs256_algorithm_ok
+
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - platform
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8001/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+    
+  gateway-service:
+    build:
+      context: ../minikosbreb/gateway-service
+      dockerfile: Dockerfile
+    image: platform_gateway:local
+    container_name: platform_gateway
+    restart: unless-stopped
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - AUTH_SERVICE_URL=http://auth-service:8001
+    ports:
+      - "8080:8080"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+    networks:
+      - platform
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 8001 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  tenant-service:
+    build:
+      context: ../minikosbreb/tenant-service
+      dockerfile: Dockerfile
+    image: platform_tenant:local
+    container_name: platform_tenant
+    restart: unless-stopped
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/platform
+      - SPRING_DATASOURCE_USERNAME=platform
+      - SPRING_DATASOURCE_PASSWORD=platform_dev
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - platform
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8002/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  billing-service:
+    build:
+      context: ../minikosbreb/billing-service
+      dockerfile: Dockerfile
+    image: platform_billing:local
+    container_name: platform_billing
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/platform?currentSchema=billing
+      SPRING_DATASOURCE_USERNAME: platform
+      SPRING_DATASOURCE_PASSWORD: platform_dev
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+    ports:
+      - "8003:8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - platform
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8003/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  payment-service:
+    build:
+      context: ../backend/payment-service
+      dockerfile: Dockerfile
+    image: platform_payment:local
+    container_name: platform_payment
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/platform
+      SPRING_DATASOURCE_USERNAME: platform
+      SPRING_DATASOURCE_PASSWORD: platform_dev
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      PAYMENT_MASTER_KEY: dev_master_key_256bits_must_be_32chars!
+    ports:
+      - "8004:8004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - platform
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8004/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
