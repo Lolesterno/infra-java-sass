@@ -18,9 +18,9 @@ services:
     container_name: platform_postgres
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=platform
-      - POSTGRES_PASSWORD=platform_dev
-      - POSTGRES_DB=platform
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     ports:
       - "5432:5432"
     volumes:
@@ -29,7 +29,7 @@ services:
     networks:
       - platform
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U platform -d platform"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -41,9 +41,9 @@ services:
     environment:
       - POSTGRESQL_HOST=postgres
       - POSTGRESQL_PORT=5432
-      - POSTGRESQL_USERNAME=platform
-      - POSTGRESQL_PASSWORD=platform_dev
-      - POSTGRESQL_DATABASE=platform
+      - POSTGRESQL_USERNAME=${POSTGRES_USER}
+      - POSTGRESQL_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRESQL_DATABASE=${POSTGRES_DB}
       - PGBOUNCER_PORT=6432
       - PGBOUNCER_POOL_MODE=transaction
       - PGBOUNCER_MAX_CLIENT_CONN=1000
@@ -85,13 +85,13 @@ services:
     container_name: platform_auth
     restart: unless-stopped
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/platform
-      - SPRING_DATASOURCE_USERNAME=platform
-      - SPRING_DATASOURCE_PASSWORD=platform_dev
-      - SPRING_DATA_REDIS_HOST=redis
-      - SPRING_DATA_REDIS_PORT=6379
-      - JWT_SECRET=dev_secret_key_must_be_at_least_256_bits_long_for_hs256_algorithm_ok
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: ${DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
+      JWT_SECRET: ${JWT_SECRET}
 
     ports:
       - "8001:8001"
@@ -118,10 +118,17 @@ services:
     container_name: platform_gateway
     restart: unless-stopped
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - SPRING_DATA_REDIS_HOST=redis
-      - SPRING_DATA_REDIS_PORT=6379
-      - AUTH_SERVICE_URL=http://auth-service:8001
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
+      AUTH_SERVICE_URL: http://auth-service:8001
+      TENANT_SERVICE_URL: http://tenant-service:8002
+      BILLING_SERVICE_URL: http://billing-service:8003
+      PAYMENT_SERVICE_URL: http://payment-service:8004
+      FLEET_SERVICE_URL: http://fleet-service:8005
+      CUSTOMER_SERVICE_URL: http://customer-service:8006
+      BOOKING_SERVICE_URL: http://booking-service:8007
+      MEET_SERVICE_URL: http://meet-service:8008
     ports:
       - "8080:8080"
     depends_on:
@@ -144,12 +151,12 @@ services:
     container_name: platform_tenant
     restart: unless-stopped
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/platform
-      - SPRING_DATASOURCE_USERNAME=platform
-      - SPRING_DATASOURCE_PASSWORD=platform_dev
-      - SPRING_DATA_REDIS_HOST=redis
-      - SPRING_DATA_REDIS_PORT=6379
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: ${DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
 
     ports:
       - "8002:8002"
@@ -176,11 +183,11 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/platform?currentSchema=billing
-      SPRING_DATASOURCE_USERNAME: platform
-      SPRING_DATASOURCE_PASSWORD: platform_dev
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATASOURCE_URL: ${DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
     ports:
       - "8003:8003"
     depends_on:
@@ -206,12 +213,12 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/platform
-      SPRING_DATASOURCE_USERNAME: platform
-      SPRING_DATASOURCE_PASSWORD: platform_dev
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      PAYMENT_MASTER_KEY: dev_master_key_256bits_must_be_32chars!
+      SPRING_DATASOURCE_URL: ${DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
+      PAYMENT_MASTER_KEY: ${PAYMENT_MASTER_KEY}
     ports:
       - "8004:8004"
     depends_on:
@@ -237,11 +244,11 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/platform
-      SPRING_DATASOURCE_USERNAME: platform
-      SPRING_DATASOURCE_PASSWORD: platform_dev
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATASOURCE_URL: ${DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
     ports:
       - "8005:8005"
     depends_on:
@@ -267,11 +274,11 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/platform
-      SPRING_DATASOURCE_USERNAME: platform
-      SPRING_DATASOURCE_PASSWORD: platform_dev
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATASOURCE_URL: ${DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
     ports:
       - "8006:8006"
     depends_on:
@@ -295,11 +302,11 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/platform
-      SPRING_DATASOURCE_USERNAME: platform
-      SPRING_DATASOURCE_PASSWORD: platform_dev
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATASOURCE_URL: ${DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
     ports:
       - "8007:8007"
     depends_on:
@@ -325,11 +332,11 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/platform
-      SPRING_DATASOURCE_USERNAME: platform
-      SPRING_DATASOURCE_PASSWORD: platform_dev
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATASOURCE_URL: ${DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
     ports:
       - "8008:8008"
     depends_on:
@@ -384,8 +391,8 @@ services:
     ports:
       - "4032:3000"
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: platform123
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_AUTH_ANONYMOUS_ENABLED: "false"
     volumes:
