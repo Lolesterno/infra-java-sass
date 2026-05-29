@@ -188,6 +188,9 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SPRING_DATA_REDIS_HOST: ${REDIS_HOST}
       SPRING_DATA_REDIS_PORT: ${REDIS_PORT}
+      PLATFORM_STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      PLATFORM_STRIPE_PUBLIC_KEY: ${STRIPE_PUBLIC_KEY}
+      PLATFORM_STRIPE_WEBHOOK_SECRET: ${WEBHOOK_SECRET_KEY}
     ports:
       - "8003:8003"
     depends_on:
@@ -348,6 +351,34 @@ services:
       - platform
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8008/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  admin-service:
+    build:
+      context: ../minikosbreb/admin-service
+      dockerfile: Dockerfile
+    image: platform_admin:local
+    container_name: platform_admin
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: ${DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      TENANT_SERVICE_URL: http://tenant-service:8002
+      BILLING_SERVICE_URL: http://billing-service:8003
+    ports:
+      - "8009:8009"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - platform
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8009/actuator/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
